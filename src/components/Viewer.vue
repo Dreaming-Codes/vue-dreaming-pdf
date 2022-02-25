@@ -10,6 +10,8 @@ import pdfjsLib from "@/pdfjsLibWrapper";
 
 const Base64Prefix = "data:application/pdf;base64,";
 
+let pdfRenderedPages;
+let renderImage: fabric.Image;
 
 function readBlob(blob) {
   return new Promise((resolve, reject) => {
@@ -31,7 +33,7 @@ async function printPDF(pdfData) {
 
   const numPages = pdf.numPages;
 
-  return new Array(numPages)
+  const pages = new Array(numPages)
       .fill(0)
       .map((__, i) => {
         const pageNumber = i + 1;
@@ -54,22 +56,9 @@ async function printPDF(pdfData) {
                     return renderTask.promise.then(() => canvas);
                   });
       });
-}
 
-async function pdfToImage(pdfData, canvas) {
-  return (await printPDF(pdfData))
-      .map(async c => {
-        const pdfCanvas = await c;
-        console.log(canvas.width, pdfCanvas.width)
-        const scale = canvas.width / (pdfCanvas.width + 6000);
+  pdfRenderedPages = await Promise.all(pages);
 
-        canvas.add(new fabric.Image(pdfCanvas, {
-          scaleX: scale,
-          // Scale always accordingly to width to keep aspect ratio and make it fit horizontally in canvas
-          scaleY: scale,
-          selectable: false,
-        }));
-      });
 }
 
 export default {
@@ -83,13 +72,25 @@ export default {
     });
 
 
-    const text = new fabric.Text('PDF');
+    const text = new fabric.Text('PDF', {
+      selectable: false,
+    });
     this.canvas.add(text);
     text.set('text', 'loading...');
     this.canvas.requestRenderAll();
     // @ts-ignore This is temporary and only for testing
-    await pdfToImage(this.pdf, this.canvas);
+    await printPDF(this.pdf);
+
+    const pdfCanvas = pdfRenderedPages[this.currentPage];
+    renderImage = new fabric.Image(pdfCanvas, {
+      selectable: false,
+    });
+
     this.canvas.remove(text);
+    this.canvas.add(renderImage);
+    this.resizeCanvas();
+
+
   },
   props: {
     pdf: {
@@ -101,16 +102,25 @@ export default {
     async resizeCanvas() {
       const containerWidth = this.$refs.fabricWrapper.clientWidth;
       const containerHeight = this.$refs.fabricWrapper.clientHeight;
-      const scale          = containerWidth / this.canvas.getWidth();
-      const zoom           = this.canvas.getZoom() * scale;
-
+      const pdfScale = Math.min(containerWidth / pdfRenderedPages[this.currentPage].width,
+          containerHeight / pdfRenderedPages[this.currentPage].height);
+      renderImage.set({
+        scaleX: pdfScale,
+        scaleY: pdfScale,
+      });
       this.canvas.setDimensions({width: containerWidth, height: containerHeight});
-      this.canvas.setViewportTransform([zoom, 0, 0, zoom, 0, 0]);
-    }
+    },
+    async updateRenderedPage() {
+      console.log("Rendering page: " + this.currentPage);
+      renderImage.setSrc(pdfRenderedPages[this.currentPage].toDataURL(), () => {
+        this.canvas.requestRenderAll();
+      });
+    },
   },
   data() {
     return {
       canvas: null,
+      currentPage: 0,
     }
   },
 }
