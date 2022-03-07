@@ -96,7 +96,7 @@ export default {
     pdf: {
       type: Blob,
       required: true,
-    },
+    }
   },
   methods: {
     async resizeCanvas() {
@@ -110,17 +110,69 @@ export default {
       });
       this.canvas.setDimensions({width: containerWidth, height: containerHeight});
     },
-    async updateRenderedPage() {
-      console.log("Rendering page: " + this.currentPage);
+
+    addField() {
+      const wInitialSize = 200;
+      const hInitialSize = 100;
+
+      const text = new fabric.Text("Hello World", {
+        opacity: 0.5,
+        backgroundColor: "blue",
+        fill: "yellow",
+        width: wInitialSize,
+        height: hInitialSize,
+        lockRotation: true,
+        lockScalingFlip: true,
+      });
+      this.canvas.add(text);
+
+      this.currentFields.push(text);
+    },
+    async setPage(page: number) {
+      if(page <0){
+        return;
+      }
+      this.fields[this.currentPage] = this.currentFields.map((field, index) => {
+        this.canvas.remove(field);
+        return {
+          id: index,
+          x: field.left,
+          y: field.top,
+          width: field.width,
+          height: field.height,
+        }
+      });
+      this.currentFields = [];
+      this.currentPage = page;
       renderImage.setSrc(pdfRenderedPages[this.currentPage].toDataURL(), () => {
         this.canvas.requestRenderAll();
-      });
+      })
+      if(!this.fields[this.currentPage]){
+        return;
+      }
+      this.fields[this.currentPage].forEach((field)=>{
+        const fieldObject = new fabric.Text("Hello Worldg", {
+          opacity: 0.5,
+          backgroundColor: "blue",
+          fill: "yellow",
+          left: field.x,
+          top: field.y,
+          width: field.width,
+          height: field.height,
+          lockRotation: true,
+          lockScalingFlip: true,
+        });
+        this.canvas.add(fieldObject)
+        this.currentFields.push(fieldObject);
+      })
     },
   },
   data() {
     return {
       canvas: null,
       currentPage: 0,
+      fields: [],
+      currentFields: [],
     }
   },
 }

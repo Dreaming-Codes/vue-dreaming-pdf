@@ -2,6 +2,7 @@
   <div id="app">
     <input v-if="!file" type="file" accept="application/pdf" @change="renderPDF">
     <button @click="spawnText">SPAWN TEXT</button>
+    <button @click="previusPage">PREVIUS PAGE</button>
     <button @click="nextPage">NEXT PAGE</button>
     <viewer ref="viewer" v-if="file" style="height: 100%; width: 100%" :pdf="file"></viewer>
   </div>
@@ -21,26 +22,13 @@ export default Vue.extend({
       const wInitialSize = 200;
       const hInitialSize = 100;
 
-      const text = new fabric.Text("Hello World", {
-        opacity: 0.5,
-        backgroundColor: "blue",
-        fill: "yellow",
-        width: wInitialSize,
-        height: hInitialSize,
-        lockRotation: true,
-        lockScalingFlip: true,
-      });
-      this.$refs.viewer.canvas.add(text);
-      setInterval(()=>{
-        console.log(text.get("top"))
-        console.log(text.get("left"))
-        console.log("w:" + wInitialSize * text.get("scaleX"))
-        console.log("h:" + hInitialSize * text.get("scaleY"))
-      })
+      this.$refs.viewer.addField()
     },
     nextPage(){
-      this.$refs.viewer.currentPage++;
-      this.$refs.viewer.updateRenderedPage();
+      this.$refs.viewer.setPage(this.$refs.viewer.currentPage + 1);
+    },
+    previusPage(){
+      this.$refs.viewer.setPage(this.$refs.viewer.currentPage - 1);
     },
   },
   data() {
