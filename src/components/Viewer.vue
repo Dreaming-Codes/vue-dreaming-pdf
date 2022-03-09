@@ -7,7 +7,7 @@
 <script lang="ts">
 import {fabric} from "fabric";
 import pdfjsLib from "@/pdfjsLibWrapper";
-import {PDFArray, PDFDocument, PDFName} from "pdf-lib";
+import {PDFDocument} from "pdf-lib";
 
 const Base64Prefix = "data:application/pdf;base64,";
 
@@ -69,7 +69,7 @@ async function printPDF(pdfData) {
                   });
       });
 
-      return Promise.all(pages);
+  return Promise.all(pages);
 
 }
 
@@ -120,7 +120,7 @@ export default {
         let pageIndex = pdfDoc.getPages().findIndex((p) => p.ref === w.P());
 
         console.log(rectangle, pageIndex);
-        if(!this.fields[pageIndex]){
+        if (!this.fields[pageIndex]) {
           this.fields[pageIndex] = [];
         }
         const textBoxToSpawn = new fabric.Text(name, {
@@ -145,7 +145,6 @@ export default {
     })
 
     this.pdf = await blobToBase64(await new Blob([await pdfDoc.save()], {type: 'application/pdf'}))
-
 
 
     pdfRenderedPages = await printPDF(atob(this.pdf.substring(Base64Prefix.length)))
@@ -180,7 +179,7 @@ export default {
             containerHeight / pdfRenderedPages[this.currentPage].height);
         this.canvas.setZoom(pdfScale)
         this.canvas.setDimensions({width: renderImage.width * pdfScale, height: renderImage.height * pdfScale});
-      }catch (e) {
+      } catch (e) {
         // Discard error caused by clientWidth and clientHeight being unavailable during resize
       }
 
@@ -191,7 +190,7 @@ export default {
      * @param field field to add. Only
      */
     addField(field: pdfField) {
-      if(!this.fields[this.currentPage]){
+      if (!this.fields[this.currentPage]) {
         this.fields[this.currentPage] = [];
       }
 
@@ -200,12 +199,12 @@ export default {
     },
 
     async setPage(page: number) {
-      if(page <0 || page >= pdfRenderedPages.length) {
+      if (page < 0 || page >= pdfRenderedPages.length) {
         console.warn("Page out of bounds");
         return;
       }
-      if(this.fields[this.currentPage]){
-        this.fields[this.currentPage].forEach((field)=>{
+      if (this.fields[this.currentPage]) {
+        this.fields[this.currentPage].forEach((field) => {
           this.canvas.remove(field.fabricEntity)
         });
       }
@@ -213,23 +212,23 @@ export default {
       renderImage.setSrc(pdfRenderedPages[this.currentPage].toDataURL(), () => {
         this.canvas.requestRenderAll();
       })
-      if(!this.fields[this.currentPage]){
+      if (!this.fields[this.currentPage]) {
         return;
       }
-      this.fields[this.currentPage].forEach((field)=>{
+      this.fields[this.currentPage].forEach((field) => {
         this.canvas.add(field.fabricEntity)
       })
     },
-    async exportToPDF(){
+    async exportToPDF() {
       const pdfDoc = await PDFDocument.load(this.pdf.toString());
       const forms = pdfDoc.getForm();
       pdfDoc.getPages().forEach((page, index) => {
-        if(this.fields[index]){
-          this.fields[index].forEach(({id, type, fabricEntity})=>{
+        if (this.fields[index]) {
+          this.fields[index].forEach(({id, type, fabricEntity}) => {
             const pdfForm = forms.createTextField(id)
             console.log(pdfForm)
 
-            const height = fabricEntity.getScaledHeight() / window.devicePixelRatio ;
+            const height = fabricEntity.getScaledHeight() / window.devicePixelRatio;
             const width = fabricEntity.getScaledWidth() / window.devicePixelRatio;
 
             pdfForm.addToPage(page, {
