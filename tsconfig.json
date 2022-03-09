@@ -23,7 +23,7 @@
     },
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "noEmit": false,
+    "noEmit": true,
     "importHelpers": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,

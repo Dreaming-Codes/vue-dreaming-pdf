@@ -1,5 +1,6 @@
 import {createVuePlugin} from "vite-plugin-vue2";
 import * as path from "path";
+import typescript2 from "rollup-plugin-typescript2"
 
 const config = {
     base: '/',
@@ -14,8 +15,6 @@ const config = {
             output: {
                 globals: {
                     vue: 'Vue',
-                    fabric: 'fabric',
-                    'pdf-lib': 'pdfLib',
                 },
             },
         },
@@ -34,7 +33,8 @@ const config = {
         ],
     },
     plugins: [
-        createVuePlugin()
+        createVuePlugin(),
+        typescript2(),
     ],
 }
 
