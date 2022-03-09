@@ -9,11 +9,13 @@ import {fabric} from "fabric";
 import pdfjsLib from "@/pdfjsLibWrapper";
 import {PDFDocument} from "pdf-lib";
 import {fieldTypes, pdfField} from "@/components/index";
+import {PDFDocumentProxy} from "pdfjs-dist";
 
 const Base64Prefix = "data:application/pdf;base64,";
 
-let pdfRenderedPages;
 let renderImage: fabric.Image;
+
+const renderCache = [];
 
 function readBlob(blob) {
   return new Promise((resolve, reject) => {
@@ -32,49 +34,24 @@ function blobToBase64(blob) {
   });
 }
 
-async function printPDF(pdfData) {
-  /*
-  pdfData = pdfData instanceof Blob ? await readBlob(pdfData) : pdfData;
-
-  // noinspection JSDeprecatedSymbols It isn't deprecated
-  const data = atob(pdfData.startsWith(Base64Prefix) ? pdfData.substring(Base64Prefix.length) : pdfData);
-
-   */
-
-  // Using DocumentInitParameters object to load binary data.
-  const pdf = await pdfjsLib.getDocument({data: pdfData}).promise;
-
-  const numPages = pdf.numPages;
-
-  const pages = new Array(numPages)
-      .fill(0)
-      .map((__, i) => {
-        const pageNumber = i + 1;
-        return pdf.getPage(pageNumber)
-                  .then((page) => {
-                    //  retina scaling
-                    const viewport = page.getViewport(
-                        {scale: window.devicePixelRatio});
-                    // Prepare canvas using PDF page dimensions
-                    const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
-                    canvas.height = viewport.height
-                    canvas.width = viewport.width;
-                    // Render PDF page into canvas context
-                    const renderContext = {
-                      canvasContext: context,
-                      viewport: viewport
-                    };
-                    const renderTask = page.render(renderContext);
-                    return renderTask.promise.then(() => canvas);
-                  });
-      });
-
-  return Promise.all(pages);
-
+async function printPDFPage(pdf: PDFDocumentProxy, page: number) {
+  if(renderCache[page - 1]) {
+    return renderCache[page-1];
+  }
+  const pdfPage = await pdf.getPage(page);
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  const viewport = pdfPage.getViewport({scale: window.devicePixelRatio});
+  canvas.height = viewport.height;
+  canvas.width = viewport.width;
+  const renderContext = {
+    canvasContext: context,
+    viewport: viewport
+  };
+  await pdfPage.render(renderContext).promise;
+  renderCache[page-1] = canvas;
+  return canvas;
 }
-
-
 
 export default {
   name: "Viewer",
@@ -132,11 +109,9 @@ export default {
 
     this.pdf = await blobToBase64(await new Blob([await pdfDoc.save()], {type: 'application/pdf'}))
 
+    this.pdfJS = await pdfjsLib.getDocument({data: atob(this.pdf.substring(Base64Prefix.length))}).promise;
 
-    pdfRenderedPages = await printPDF(atob(this.pdf.substring(Base64Prefix.length)))
-
-    const pdfCanvas = pdfRenderedPages[this.currentPage];
-    renderImage = new fabric.Image(pdfCanvas, {
+    renderImage = new fabric.Image(await printPDFPage(this.pdfJS, 1), {
       selectable: false,
     });
 
@@ -146,7 +121,7 @@ export default {
     window.addEventListener("resize", () => {
       this.resizeCanvas();
     });
-    this.setPage(0);
+    this.setPage(1);
 
 
   },
@@ -160,9 +135,7 @@ export default {
     async resizeCanvas() {
       try {
         const containerWidth = this.$refs.fabricWrapper.clientWidth;
-        const containerHeight = this.$refs.fabricWrapper.clientHeight;
-        const pdfScale = Math.min(containerWidth / pdfRenderedPages[this.currentPage].width,
-            containerHeight / pdfRenderedPages[this.currentPage].height);
+        const pdfScale = containerWidth / renderImage.width
         this.canvas.setZoom(pdfScale)
         this.canvas.setDimensions({width: renderImage.width * pdfScale, height: renderImage.height * pdfScale});
       } catch (e) {
@@ -176,41 +149,42 @@ export default {
      * @param field field to add. Only
      */
     addField(field: pdfField) {
-      if (!this.fields[this.currentPage]) {
-        this.fields[this.currentPage] = [];
+      if (!this.fields[this.currentPage-1]) {
+        this.fields[this.currentPage-1] = [];
       }
 
-      this.fields[this.currentPage].push(field);
+      this.fields[this.currentPage-1].push(field);
       this.canvas.add(field.fabricEntity);
     },
 
     async setPage(page: number) {
-      if (page < 0 || page >= pdfRenderedPages.length) {
+      if (page < 1 || page >= this.pdfJS.numPages) {
         console.warn("Page out of bounds");
         return;
       }
-      if (this.fields[this.currentPage]) {
-        this.fields[this.currentPage].forEach((field) => {
+      if (this.fields[this.currentPage-1]) {
+        this.fields[this.currentPage-1].forEach((field) => {
           this.canvas.remove(field.fabricEntity)
         });
       }
       this.currentPage = page;
-      renderImage.setSrc(pdfRenderedPages[this.currentPage].toDataURL(), () => {
+      renderImage.setSrc((await printPDFPage(this.pdfJS, this.currentPage)).toDataURL(), () => {
         this.canvas.requestRenderAll();
       })
-      if (!this.fields[this.currentPage]) {
+      if (!this.fields[this.currentPage-1]) {
         return;
       }
-      this.fields[this.currentPage].forEach((field) => {
+      this.fields[this.currentPage-1].forEach((field) => {
         this.canvas.add(field.fabricEntity)
       })
+      this.resizeCanvas();
     },
     async exportToPDF() {
       const pdfDoc = await PDFDocument.load(this.pdf.toString());
       const forms = pdfDoc.getForm();
       pdfDoc.getPages().forEach((page, index) => {
         if (this.fields[index]) {
-          this.fields[index].forEach(({id, type, fabricEntity}) => {
+          this.fields[index].forEach(({id, _type, fabricEntity}) => {
             const pdfForm = forms.createTextField(id)
             console.log(pdfForm)
 
@@ -240,7 +214,8 @@ export default {
     return {
       canvas: null,
       currentPage: 0,
-      fields: []
+      fields: [],
+      pdfJS: null,
     }
   },
 }
