@@ -10,8 +10,8 @@
 </template>
 <script lang="ts">
 import Vue from "vue";
-import Viewer, {fieldTypes, pdfField} from "@/components/Viewer.vue";
 import {fabric} from "fabric";
+import {fieldTypes, pdfField, Viewer} from "@/components";
 
 export default Vue.extend({
   components: {Viewer},

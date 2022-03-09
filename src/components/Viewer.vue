@@ -8,6 +8,7 @@
 import {fabric} from "fabric";
 import pdfjsLib from "@/pdfjsLibWrapper";
 import {PDFDocument} from "pdf-lib";
+import {fieldTypes, pdfField} from "@/components/index";
 
 const Base64Prefix = "data:application/pdf;base64,";
 
@@ -73,22 +74,7 @@ async function printPDF(pdfData) {
 
 }
 
-export enum fieldTypes {
-  /**
-   * Only works with text entities
-   */
-  Input
-}
 
-
-export interface pdfField {
-  id: string,
-  type: fieldTypes,
-  /**
-   * For now only support text entities with Input type
-   */
-  fabricEntity: fabric.Object | fabric.Point | fabric.Intersection
-}
 
 export default {
   name: "Viewer",
