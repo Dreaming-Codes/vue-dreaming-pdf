@@ -2,6 +2,7 @@
   "name": "@dreaming-codes/vue-dreaming-pdf",
   "repository": "git://github.com/Dreaming-Codes/vue-dreaming-pdf.git",
   "version": "0.0.2",
+  "main": "dist/dreamingpdf.es.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
