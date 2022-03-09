@@ -10,11 +10,12 @@ const config = {
             fileName: (format) => `dreamingpdf.${format}.js`,
         },
         rollupOptions: {
-            external: ['vue', 'fabric'],
+            external: ['vue', 'fabric', 'pdf-lib'],
             output: {
                 globals: {
                     vue: 'Vue',
-                    fabric: 'fabric'
+                    fabric: 'fabric',
+                    'pdf-lib': 'pdfLib',
                 },
             },
         },

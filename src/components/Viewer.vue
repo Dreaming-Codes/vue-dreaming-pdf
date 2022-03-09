@@ -7,6 +7,7 @@
 <script lang="ts">
 import {fabric} from "fabric";
 import pdfjsLib from "@/pdfjsLibWrapper";
+import {PDFArray, PDFDocument, PDFName} from "pdf-lib";
 
 const Base64Prefix = "data:application/pdf;base64,";
 
@@ -22,14 +23,25 @@ function readBlob(blob) {
   })
 }
 
+function blobToBase64(blob) {
+  return new Promise((resolve, _) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function printPDF(pdfData) {
+  /*
   pdfData = pdfData instanceof Blob ? await readBlob(pdfData) : pdfData;
 
   // noinspection JSDeprecatedSymbols It isn't deprecated
   const data = atob(pdfData.startsWith(Base64Prefix) ? pdfData.substring(Base64Prefix.length) : pdfData);
 
+   */
+
   // Using DocumentInitParameters object to load binary data.
-  const pdf = await pdfjsLib.getDocument({data}).promise;
+  const pdf = await pdfjsLib.getDocument({data: pdfData}).promise;
 
   const numPages = pdf.numPages;
 
@@ -57,8 +69,25 @@ async function printPDF(pdfData) {
                   });
       });
 
-  pdfRenderedPages = await Promise.all(pages);
+      return Promise.all(pages);
 
+}
+
+export enum fieldTypes {
+  /**
+   * Only works with text entities
+   */
+  Input
+}
+
+
+export interface pdfField {
+  id: string,
+  type: fieldTypes,
+  /**
+   * For now only support text entities with Input type
+   */
+  fabricEntity: fabric.Object | fabric.Point | fabric.Intersection
 }
 
 export default {
@@ -66,20 +95,60 @@ export default {
   async mounted() {
     this.canvas = new fabric.Canvas(this.$refs.viewer);
 
-    this.resizeCanvas();
-    window.addEventListener("resize", () => {
-      this.resizeCanvas();
-    });
-
-
     const text = new fabric.Text('PDF', {
       selectable: false,
     });
     this.canvas.add(text);
     text.set('text', 'loading...');
     this.canvas.requestRenderAll();
-    // @ts-ignore This is temporary and only for testing
-    await printPDF(this.pdf);
+
+    this.pdf = await readBlob(this.pdf)
+
+    const pdfDoc = await PDFDocument.load(this.pdf);
+
+    const form = pdfDoc.getForm()
+
+    const fields = form.getFields()
+
+    fields.forEach(field => {
+      const name = field.getName();
+      const textField = form.getTextField(name);
+      const widgets = textField.acroField.getWidgets();
+      widgets.forEach((w) => {
+        let rectangle = w.getRectangle();
+        let page = pdfDoc.getPages().find((p) => p.ref === w.P());
+        let pageIndex = pdfDoc.getPages().findIndex((p) => p.ref === w.P());
+
+        console.log(rectangle, pageIndex);
+        if(!this.fields[pageIndex]){
+          this.fields[pageIndex] = [];
+        }
+        const textBoxToSpawn = new fabric.Text(name, {
+          left: rectangle.x * window.devicePixelRatio,
+          backgroundColor: '#5e1d1d',
+          strokeWidth: 1,
+        });
+
+        textBoxToSpawn.scaleX = rectangle.width / textBoxToSpawn.width * window.devicePixelRatio;
+        textBoxToSpawn.scaleY = rectangle.height / textBoxToSpawn.height * window.devicePixelRatio;
+        textBoxToSpawn.top = (page.getHeight() - rectangle.y) * window.devicePixelRatio - textBoxToSpawn.getScaledHeight();
+
+        form.removeField(field)
+
+
+        this.fields[pageIndex].push({
+          id: name,
+          type: fieldTypes.Input,
+          fabricEntity: textBoxToSpawn
+        })
+      });
+    })
+
+    this.pdf = await blobToBase64(await new Blob([await pdfDoc.save()], {type: 'application/pdf'}))
+
+
+
+    pdfRenderedPages = await printPDF(atob(this.pdf.substring(Base64Prefix.length)))
 
     const pdfCanvas = pdfRenderedPages[this.currentPage];
     renderImage = new fabric.Image(pdfCanvas, {
@@ -89,6 +158,10 @@ export default {
     this.canvas.remove(text);
     this.canvas.add(renderImage);
     this.resizeCanvas();
+    window.addEventListener("resize", () => {
+      this.resizeCanvas();
+    });
+    this.setPage(0);
 
 
   },
@@ -100,49 +173,42 @@ export default {
   },
   methods: {
     async resizeCanvas() {
-      const containerWidth = this.$refs.fabricWrapper.clientWidth;
-      const containerHeight = this.$refs.fabricWrapper.clientHeight;
-      const pdfScale = Math.min(containerWidth / pdfRenderedPages[this.currentPage].width,
-          containerHeight / pdfRenderedPages[this.currentPage].height);
-      renderImage.set({
-        scaleX: pdfScale,
-        scaleY: pdfScale,
-      });
-      this.canvas.setDimensions({width: containerWidth, height: containerHeight});
+      try {
+        const containerWidth = this.$refs.fabricWrapper.clientWidth;
+        const containerHeight = this.$refs.fabricWrapper.clientHeight;
+        const pdfScale = Math.min(containerWidth / pdfRenderedPages[this.currentPage].width,
+            containerHeight / pdfRenderedPages[this.currentPage].height);
+        this.canvas.setZoom(pdfScale)
+        this.canvas.setDimensions({width: renderImage.width * pdfScale, height: renderImage.height * pdfScale});
+      }catch (e) {
+        // Discard error caused by clientWidth and clientHeight being unavailable during resize
+      }
+
     },
 
-    addField() {
-      const wInitialSize = 200;
-      const hInitialSize = 100;
+    /**
+     *  Add a field to the pdf for exporting
+     * @param field field to add. Only
+     */
+    addField(field: pdfField) {
+      if(!this.fields[this.currentPage]){
+        this.fields[this.currentPage] = [];
+      }
 
-      const text = new fabric.Text("Hello World", {
-        opacity: 0.5,
-        backgroundColor: "blue",
-        fill: "yellow",
-        width: wInitialSize,
-        height: hInitialSize,
-        lockRotation: true,
-        lockScalingFlip: true,
-      });
-      this.canvas.add(text);
-
-      this.currentFields.push(text);
+      this.fields[this.currentPage].push(field);
+      this.canvas.add(field.fabricEntity);
     },
+
     async setPage(page: number) {
-      if(page <0){
+      if(page <0 || page >= pdfRenderedPages.length) {
+        console.warn("Page out of bounds");
         return;
       }
-      this.fields[this.currentPage] = this.currentFields.map((field, index) => {
-        this.canvas.remove(field);
-        return {
-          id: index,
-          x: field.left,
-          y: field.top,
-          width: field.width,
-          height: field.height,
-        }
-      });
-      this.currentFields = [];
+      if(this.fields[this.currentPage]){
+        this.fields[this.currentPage].forEach((field)=>{
+          this.canvas.remove(field.fabricEntity)
+        });
+      }
       this.currentPage = page;
       renderImage.setSrc(pdfRenderedPages[this.currentPage].toDataURL(), () => {
         this.canvas.requestRenderAll();
@@ -151,28 +217,45 @@ export default {
         return;
       }
       this.fields[this.currentPage].forEach((field)=>{
-        const fieldObject = new fabric.Text("Hello Worldg", {
-          opacity: 0.5,
-          backgroundColor: "blue",
-          fill: "yellow",
-          left: field.x,
-          top: field.y,
-          width: field.width,
-          height: field.height,
-          lockRotation: true,
-          lockScalingFlip: true,
-        });
-        this.canvas.add(fieldObject)
-        this.currentFields.push(fieldObject);
+        this.canvas.add(field.fabricEntity)
       })
     },
+    async exportToPDF(){
+      const pdfDoc = await PDFDocument.load(this.pdf.toString());
+      const forms = pdfDoc.getForm();
+      pdfDoc.getPages().forEach((page, index) => {
+        if(this.fields[index]){
+          this.fields[index].forEach(({id, type, fabricEntity})=>{
+            const pdfForm = forms.createTextField(id)
+            console.log(pdfForm)
+
+            const height = fabricEntity.getScaledHeight() / window.devicePixelRatio ;
+            const width = fabricEntity.getScaledWidth() / window.devicePixelRatio;
+
+            pdfForm.addToPage(page, {
+              x: fabricEntity.left / window.devicePixelRatio,
+              y: page.getHeight() - fabricEntity.top / window.devicePixelRatio - height,
+              width,
+              height,
+            })
+          })
+        }
+      });
+
+      pdfDoc.save().then(pdfBlob => {
+        const url = URL.createObjectURL(new Blob([pdfBlob]));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'output.pdf';
+        a.click();
+      });
+    }
   },
   data() {
     return {
       canvas: null,
       currentPage: 0,
-      fields: [],
-      currentFields: [],
+      fields: []
     }
   },
 }
