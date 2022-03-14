@@ -1,7 +1,7 @@
 {
   "name": "@dreaming-codes/vue-dreaming-pdf",
   "repository": "git://github.com/Dreaming-Codes/vue-dreaming-pdf.git",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "main": "dist/dreamingpdf.es.js",
   "types": "dist/components/index.d.ts",
   "scripts": {

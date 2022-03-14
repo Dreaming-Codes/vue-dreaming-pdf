@@ -17,6 +17,7 @@ let renderImage: fabric.Image;
 
 const renderCache = [];
 
+
 function readBlob(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -34,22 +35,25 @@ function blobToBase64(blob) {
   });
 }
 
+
 async function printPDFPage(pdf: PDFDocumentProxy, page: number) {
-  if(renderCache[page - 1]) {
-    return renderCache[page-1];
+  if (renderCache[page - 1]) {
+    return renderCache[page - 1];
   }
   const pdfPage = await pdf.getPage(page);
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
-  const viewport = pdfPage.getViewport({scale: window.devicePixelRatio});
+
+  const viewport = pdfPage.getViewport({scale: (screen.width / pdfPage.getViewport({scale: 1}).width)});
   canvas.height = viewport.height;
   canvas.width = viewport.width;
+
   const renderContext = {
     canvasContext: context,
     viewport: viewport
   };
   await pdfPage.render(renderContext).promise;
-  renderCache[page-1] = canvas;
+  renderCache[page - 1] = canvas;
   return canvas;
 }
 
@@ -98,7 +102,6 @@ export default {
 
         form.removeField(field)
 
-
         this.fields[pageIndex].push({
           id: name,
           type: fieldTypes.Input,
@@ -118,9 +121,12 @@ export default {
     this.canvas.remove(text);
     this.canvas.add(renderImage);
     this.resizeCanvas();
+    //TODO: Uncomment this after fixing the zoom graphics loss
+    /*
     window.addEventListener("resize", () => {
       this.resizeCanvas();
     });
+     */
     this.setPage(1);
 
 
@@ -134,10 +140,11 @@ export default {
   methods: {
     async resizeCanvas() {
       try {
-        const containerWidth = this.$refs.fabricWrapper.clientWidth;
-        const pdfScale = containerWidth / renderImage.width
+        const pdfScale = this.$refs.fabricWrapper.clientWidth / renderImage.width;
+
         this.canvas.setZoom(pdfScale)
         this.canvas.setDimensions({width: renderImage.width * pdfScale, height: renderImage.height * pdfScale});
+        console.log("RESIZING")
       } catch (e) {
         // Discard error caused by clientWidth and clientHeight being unavailable during resize
       }
@@ -149,11 +156,11 @@ export default {
      * @param field field to add. Only
      */
     addField(field: pdfField) {
-      if (!this.fields[this.currentPage-1]) {
-        this.fields[this.currentPage-1] = [];
+      if (!this.fields[this.currentPage - 1]) {
+        this.fields[this.currentPage - 1] = [];
       }
 
-      this.fields[this.currentPage-1].push(field);
+      this.fields[this.currentPage - 1].push(field);
       this.canvas.add(field.fabricEntity);
     },
 
@@ -162,8 +169,8 @@ export default {
         console.warn("Page out of bounds");
         return;
       }
-      if (this.fields[this.currentPage-1]) {
-        this.fields[this.currentPage-1].forEach((field) => {
+      if (this.fields[this.currentPage - 1]) {
+        this.fields[this.currentPage - 1].forEach((field) => {
           this.canvas.remove(field.fabricEntity)
         });
       }
@@ -171,13 +178,13 @@ export default {
       renderImage.setSrc((await printPDFPage(this.pdfJS, this.currentPage)).toDataURL(), () => {
         this.canvas.requestRenderAll();
       })
-      if (!this.fields[this.currentPage-1]) {
+      if (!this.fields[this.currentPage - 1]) {
         return;
       }
-      this.fields[this.currentPage-1].forEach((field) => {
+      this.fields[this.currentPage - 1].forEach((field) => {
         this.canvas.add(field.fabricEntity)
       })
-      this.resizeCanvas();
+      await this.resizeCanvas();
     },
     async exportToPDF() {
       const pdfDoc = await PDFDocument.load(this.pdf.toString());
