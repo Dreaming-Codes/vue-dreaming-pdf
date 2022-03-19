@@ -9,14 +9,13 @@ import {fabric} from "fabric";
 import pdfjsLib from "@/pdfjsLibWrapper";
 import {PDFDocument} from "pdf-lib";
 import {fieldTypes, pdfField} from "@/components/index";
-import {PDFDocumentProxy} from "pdfjs-dist";
+import {PDFPageProxy} from "pdfjs-dist";
 
 const Base64Prefix = "data:application/pdf;base64,";
 
 let renderImage: fabric.Image;
 
-const renderCache = [];
-
+let pdfPage: PDFPageProxy;
 
 function readBlob(blob) {
   return new Promise((resolve, reject) => {
@@ -33,28 +32,6 @@ function blobToBase64(blob) {
     reader.onloadend = () => resolve(reader.result);
     reader.readAsDataURL(blob);
   });
-}
-
-
-async function printPDFPage(pdf: PDFDocumentProxy, page: number) {
-  if (renderCache[page - 1]) {
-    return renderCache[page - 1];
-  }
-  const pdfPage = await pdf.getPage(page);
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-
-  const viewport = pdfPage.getViewport({scale: (screen.width / pdfPage.getViewport({scale: 1}).width)});
-  canvas.height = viewport.height;
-  canvas.width = viewport.width;
-
-  const renderContext = {
-    canvasContext: context,
-    viewport: viewport
-  };
-  await pdfPage.render(renderContext).promise;
-  renderCache[page - 1] = canvas;
-  return canvas;
 }
 
 export default {
@@ -112,21 +89,13 @@ export default {
 
     this.pdf = await blobToBase64(await new Blob([await pdfDoc.save()], {type: 'application/pdf'}))
 
-    this.pdfJS = await pdfjsLib.getDocument({data: atob(this.pdf.substring(Base64Prefix.length))}).promise;
-
-    renderImage = new fabric.Image(await printPDFPage(this.pdfJS, 1), {
-      selectable: false,
-    });
+    this.pdfJS = await pdfjsLib.getDocument({data: atob(this.pdf.substring(Base64Prefix.length)), fontExtraProperties: true}).promise;
 
     this.canvas.remove(text);
-    this.canvas.add(renderImage);
     this.resizeCanvas();
-    //TODO: Uncomment this after fixing the zoom graphics loss
-    /*
     window.addEventListener("resize", () => {
       this.resizeCanvas();
     });
-     */
     this.setPage(1);
 
 
@@ -138,8 +107,43 @@ export default {
     }
   },
   methods: {
+    async renderPDFPage(){
+
+      pdfPage = await this.pdfJS.getPage(this.currentPage);
+
+      let viewport = pdfPage.getViewport({scale: window.devicePixelRatio});
+      const newScale = this.$refs.fabricWrapper.clientWidth / viewport.width;
+      if(this.scale > newScale){
+        return;
+      }
+      this.scale = newScale;
+      console.log("rendering page");
+      viewport = pdfPage.getViewport({scale: newScale});
+
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport
+      };
+
+      await pdfPage.render(renderContext).promise;
+      if(renderImage){
+        renderImage.setSrc(canvas.toDataURL());
+      }else{
+        renderImage = new fabric.Image(canvas, {
+          selectable: false,
+        });
+      }
+      this.canvas.add(renderImage)
+    },
     async resizeCanvas() {
       try {
+        await this.renderPDFPage();
+
         const pdfScale = this.$refs.fabricWrapper.clientWidth / renderImage.width;
 
         this.canvas.setZoom(pdfScale)
@@ -175,9 +179,7 @@ export default {
         });
       }
       this.currentPage = page;
-      renderImage.setSrc((await printPDFPage(this.pdfJS, this.currentPage)).toDataURL(), () => {
-        this.canvas.requestRenderAll();
-      })
+      this.renderPDFPage();
       if (!this.fields[this.currentPage - 1]) {
         return;
       }
@@ -195,12 +197,12 @@ export default {
             const pdfForm = forms.createTextField(id)
             console.log(pdfForm)
 
-            const height = fabricEntity.getScaledHeight() / window.devicePixelRatio;
-            const width = fabricEntity.getScaledWidth() / window.devicePixelRatio;
+            const height = fabricEntity.getScaledHeight() / this.scale;
+            const width = fabricEntity.getScaledWidth() / this.scale;
 
             pdfForm.addToPage(page, {
-              x: fabricEntity.left / window.devicePixelRatio,
-              y: page.getHeight() - fabricEntity.top / window.devicePixelRatio - height,
+              x: fabricEntity.left / this.scale,
+              y: page.getHeight() - fabricEntity.top / this.scale - height,
               width,
               height,
             })
@@ -220,9 +222,10 @@ export default {
   data() {
     return {
       canvas: null,
-      currentPage: 0,
+      currentPage: 1,
       fields: [],
       pdfJS: null,
+      scale: null
     }
   },
 }
