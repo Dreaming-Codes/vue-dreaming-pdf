@@ -17,6 +17,8 @@ let renderImage: fabric.Image;
 
 let pdfPage: PDFPageProxy;
 
+let resizeInProgress = false;
+
 function readBlob(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -112,9 +114,13 @@ export default {
 
       let viewport = pdfPage.getViewport({scale: 1});
       const newScale = this.$refs.fabricWrapper.clientWidth * window.devicePixelRatio / viewport.width;
+
       if(!force && newScale < this.scale){
         return;
       }
+
+      //TODO: Move fields to correct position in the new scaling
+
       this.scale = newScale;
       console.log("rendering page");
       viewport = pdfPage.getViewport({scale: newScale});
@@ -130,15 +136,22 @@ export default {
       };
 
       await pdfPage.render(renderContext).promise;
-      this.canvas.remove(renderImage);
 
-      renderImage = new fabric.Image(canvas, {
-        selectable: false,
-      });
-      this.canvas.add(renderImage)
+      if(!renderImage){
+        renderImage = new fabric.Image(canvas, {
+          selectable: false,
+        });
+        this.canvas.add(renderImage)
+      }else {
+        renderImage.setSrc(canvas.toDataURL());
+      }
     },
     async resizeCanvas(forceRender = false) {
       try {
+        if(!forceRender && resizeInProgress){
+          return;
+        }
+        resizeInProgress = true;
         await this.renderPDFPage(forceRender);
         const fabricContainer = this.$refs.fabricWrapper.children[0];
         fabricContainer.style.width = "100%";
@@ -152,6 +165,9 @@ export default {
         console.log("RESIZING")
       } catch (e) {
         // Discard error caused by clientWidth and clientHeight being unavailable during resize
+      } finally {
+        console.log("resize done");
+        resizeInProgress = false;
       }
 
     },
@@ -170,10 +186,15 @@ export default {
     },
 
     async setPage(page: number) {
+      console.log(this.isLoading)
+      if(this.isLoading){
+        return;
+      }
       if (page < 1 || page >= this.pdfJS.numPages) {
         console.warn("Page out of bounds");
         return;
       }
+      this.isLoading = true;
       if (this.fields[this.currentPage - 1]) {
         this.fields[this.currentPage - 1].forEach((field) => {
           this.canvas.remove(field.fabricEntity)
@@ -181,6 +202,7 @@ export default {
       }
       this.currentPage = page;
       await this.resizeCanvas(true);
+      this.isLoading = false;
       if (!this.fields[this.currentPage - 1]) {
         return;
       }
@@ -226,7 +248,8 @@ export default {
       fields: [],
       pdfJS: null,
       scale: null,
-      canvasScaling: 1
+      canvasScaling: 1,
+      isLoading: false,
     }
   },
 }

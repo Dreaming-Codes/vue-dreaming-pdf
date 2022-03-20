@@ -1,11 +1,13 @@
 <template>
   <div id="app">
     <input v-if="!file" type="file" accept="application/pdf" @change="renderPDF">
-    <button @click="spawnText">SPAWN TEXT</button>
-    <button @click="previusPage">PREVIUS PAGE</button>
-    <button @click="nextPage">NEXT PAGE</button>
-    <button @click="exportPDF">EXPORT PDF</button>
-    <viewer ref="viewer" v-if="file" style="height: 90%; width: 100%" :pdf="file"></viewer>
+    <div v-if="file">
+      <button @click="previusPage">PREVIUS PAGE</button>
+      <button @click="nextPage">NEXT PAGE</button>
+      <button @click="spawnText">SPAWN TEXT</button>
+      <button @click="exportPDF">EXPORT PDF</button>
+      <viewer ref="viewer" style="height: 90%; width: 100%" :pdf="file"></viewer>
+    </div>
   </div>
 </template>
 <script lang="ts">
@@ -19,7 +21,7 @@ export default Vue.extend({
     async renderPDF(event) {
       this.file = event.target.files[0];
     },
-    spawnText(){
+    spawnText() {
       const fieldToSpawn: pdfField = {
         id: "ID: " + Date.now().toExponential(),
         type: fieldTypes.Input,
@@ -36,13 +38,13 @@ export default Vue.extend({
 
       this.$refs.viewer.addField(fieldToSpawn)
     },
-    nextPage(){
+    nextPage() {
       this.$refs.viewer.setPage(this.$refs.viewer.currentPage + 1);
     },
-    previusPage(){
+    previusPage() {
       this.$refs.viewer.setPage(this.$refs.viewer.currentPage - 1);
     },
-    exportPDF(){
+    exportPDF() {
       this.$refs.viewer.exportToPDF()
     },
   },
@@ -59,7 +61,8 @@ export default Vue.extend({
   width: 100%;
   position: absolute;
 }
-body{
+
+body {
   margin: 0;
 }
 </style>
