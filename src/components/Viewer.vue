@@ -107,13 +107,12 @@ export default {
     }
   },
   methods: {
-    async renderPDFPage(){
-
+    async renderPDFPage(force = false) {
       pdfPage = await this.pdfJS.getPage(this.currentPage);
 
-      let viewport = pdfPage.getViewport({scale: window.devicePixelRatio});
-      const newScale = this.$refs.fabricWrapper.clientWidth / viewport.width;
-      if(this.scale > newScale){
+      let viewport = pdfPage.getViewport({scale: 1});
+      const newScale = this.$refs.fabricWrapper.clientWidth * window.devicePixelRatio / viewport.width;
+      if(!force && newScale < this.scale){
         return;
       }
       this.scale = newScale;
@@ -131,23 +130,25 @@ export default {
       };
 
       await pdfPage.render(renderContext).promise;
-      if(renderImage){
-        renderImage.setSrc(canvas.toDataURL());
-      }else{
-        renderImage = new fabric.Image(canvas, {
-          selectable: false,
-        });
-      }
+      this.canvas.remove(renderImage);
+
+      renderImage = new fabric.Image(canvas, {
+        selectable: false,
+      });
       this.canvas.add(renderImage)
     },
-    async resizeCanvas() {
+    async resizeCanvas(forceRender = false) {
       try {
-        await this.renderPDFPage();
-
-        const pdfScale = this.$refs.fabricWrapper.clientWidth / renderImage.width;
-
-        this.canvas.setZoom(pdfScale)
-        this.canvas.setDimensions({width: renderImage.width * pdfScale, height: renderImage.height * pdfScale});
+        await this.renderPDFPage(forceRender);
+        const fabricContainer = this.$refs.fabricWrapper.children[0];
+        fabricContainer.style.width = "100%";
+        const height = this.$refs.fabricWrapper.clientWidth * renderImage.height / renderImage.width + "px";
+        fabricContainer.style.height = height;
+        for(let child of fabricContainer.children){
+          child.style.width = "100%";
+          child.style.height = height;
+        }
+        this.canvas.setDimensions({width: renderImage.width, height: renderImage.height}, {backstoreOnly: true});
         console.log("RESIZING")
       } catch (e) {
         // Discard error caused by clientWidth and clientHeight being unavailable during resize
@@ -179,14 +180,13 @@ export default {
         });
       }
       this.currentPage = page;
-      this.renderPDFPage();
+      await this.resizeCanvas(true);
       if (!this.fields[this.currentPage - 1]) {
         return;
       }
       this.fields[this.currentPage - 1].forEach((field) => {
         this.canvas.add(field.fabricEntity)
       })
-      await this.resizeCanvas();
     },
     async exportToPDF() {
       const pdfDoc = await PDFDocument.load(this.pdf.toString());
@@ -225,7 +225,8 @@ export default {
       currentPage: 1,
       fields: [],
       pdfJS: null,
-      scale: null
+      scale: null,
+      canvasScaling: 1
     }
   },
 }
