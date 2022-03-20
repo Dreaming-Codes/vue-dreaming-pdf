@@ -190,7 +190,7 @@ export default {
       if(this.isLoading){
         return;
       }
-      if (page < 1 || page >= this.pdfJS.numPages) {
+      if (page < 1 || page > this.pdfJS.numPages) {
         console.warn("Page out of bounds");
         return;
       }
