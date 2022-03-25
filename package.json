@@ -1,5 +1,5 @@
 {
-  "name": "@dreaming-codes/vue-dreaming-pdf",
+  "name": "vue-dreaming-pdf",
   "repository": "git://github.com/Dreaming-Codes/vue-dreaming-pdf.git",
   "version": "0.1.3",
   "main": "dist/dreamingpdf.es.js",
