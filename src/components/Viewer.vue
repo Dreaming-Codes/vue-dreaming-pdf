@@ -185,6 +185,45 @@ export default {
       this.canvas.add(field.fabricEntity);
     },
 
+    /**
+     * Get the field with the given id
+     * @param id
+     * @returns [page, pdfField]
+     */
+    getFieldById(id: string): [number, pdfField] {
+      let field;
+      const page = this.fields.findIndex((page) => {
+        field = page.find(field => field.id === id);
+        return field;
+      });
+      return [page, field];
+    },
+
+    /**
+     * Move field by id to the given page
+     * @param id id of the field to move
+     * @param page page to move to
+     * @returns [page, pdfField]
+     */
+    moveField(id: string, page: number) {
+      if(page < 1 || page > this.pdfJS.numPages){
+        throw new Error("Invalid page number");
+      }
+      const [oldPage, field] = this.getFieldById(id);
+      if(oldPage === page) {
+        return;
+      }
+      if(!field) {
+        throw new Error("Field not found");
+      }
+      this.fields[oldPage-1].splice(this.fields[oldPage-1].indexOf(field), 1);
+      if (!this.fields[page-1]) {
+        this.fields[page-1] = [field];
+      }else{
+        this.fields[page-1].push(field);
+      }
+    },
+
     async setPage(page: number) {
       console.log(this.isLoading)
       if(this.isLoading){
