@@ -225,10 +225,10 @@ export default {
     },
 
     async setPage(page: number) {
-      console.log(this.isLoading)
-      if(this.isLoading){
+      if(!this.firstLoad && this.isLoading){
         return;
       }
+      this.firstLoad = false;
       if (page < 1 || page > this.pdfJS.numPages) {
         console.warn("Page out of bounds");
         return;
@@ -280,6 +280,13 @@ export default {
       });
     }
   },
+  watch: {
+    isLoading(isLoading) {
+      if(!isLoading){
+        this.$emit("loaded");
+      }
+    }
+  },
   data() {
     return {
       canvas: null,
@@ -288,7 +295,8 @@ export default {
       pdfJS: null,
       scale: null,
       canvasScaling: 1,
-      isLoading: false,
+      isLoading: true,
+      firstLoad: true,
     }
   },
 }
