@@ -8,8 +8,7 @@
 import {fabric} from "fabric";
 import pdfjsLib from "@/pdfjsLibWrapper";
 import {PDFDocument} from "pdf-lib";
-import {fieldTypes, pdfField} from "@/components/index";
-import {PDFPageProxy} from "pdfjs-dist";
+import {PDFDocumentProxy, PDFPageProxy} from "pdfjs-dist";
 import Component from "vue-class-component";
 import Vue from "vue";
 
@@ -20,6 +19,23 @@ let renderImage: fabric.Image;
 let pdfPage: PDFPageProxy;
 
 let resizeInProgress = false;
+
+export enum fieldTypes {
+  /**
+   * Only works with text entities
+   */
+  Input
+}
+
+
+export interface pdfField {
+  id: string,
+  type: fieldTypes,
+  /**
+   * For now only support text entities with Input type
+   */
+  fabricEntity: fabric.Object
+}
 
 function readBlob(blob) {
   return new Promise((resolve, reject) => {
@@ -57,18 +73,18 @@ const ViewerProps = Vue.extend({
   }
 })
 export default class Viewer extends ViewerProps {
-  canvas = null;
+  canvas: fabric.Canvas = null;
   currentPage = 1;
-  fields = [];
-  pdfJS = null;
-  scale = null;
+  fields: pdfField[][] = [];
+  pdfJS: PDFDocumentProxy = null;
+  scale: number = null;
   pdf = null;
-  canvasScaling = 1;
   isLoading = true;
   firstLoad = true;
 
   async mounted() {
-    this.canvas = new fabric.Canvas(this.$refs.viewer as HTMLCanvasElement);
+    // @ts-ignore
+    this.canvas = new fabric.Canvas(this.$refs.viewer as unknown as HTMLCanvasElement);
 
     const text = new fabric.Text('PDF', {
       selectable: false,
@@ -296,7 +312,7 @@ export default class Viewer extends ViewerProps {
     const forms = pdfDoc.getForm();
     pdfDoc.getPages().forEach((page, index) => {
       if (this.fields[index]) {
-        this.fields[index].forEach(({id, _type, fabricEntity}) => {
+        this.fields[index].forEach(({id, fabricEntity}) => {
           const pdfForm = forms.createTextField(id)
           console.log(pdfForm)
 

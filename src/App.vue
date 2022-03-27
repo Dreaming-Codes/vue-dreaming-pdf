@@ -14,7 +14,7 @@
 <script lang="ts">
 import Vue from "vue";
 import {fabric} from "fabric";
-import {fieldTypes, pdfField, Viewer} from "@/components";
+import Viewer, {fieldTypes, pdfField} from "@/components/Viewer.vue";
 
 export default Vue.extend({
   components: {Viewer},

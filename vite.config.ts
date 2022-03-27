@@ -1,6 +1,8 @@
 import {createVuePlugin} from "vite-plugin-vue2";
 import * as path from "path";
-import typescript2 from "rollup-plugin-typescript2"
+import typescript from '@rollup/plugin-typescript';
+import dts from 'vite-plugin-dts'
+
 
 const config = {
     base: '/',
@@ -36,9 +38,13 @@ const config = {
             },
         ],
     },
+
     plugins: [
         createVuePlugin(),
-        typescript2(),
+        typescript({
+            declaration: false,
+        }),
+        dts()
     ],
 }
 
