@@ -34,7 +34,7 @@ export interface pdfField {
   /**
    * For now only support text entities with Input type
    */
-  fabricEntity: fabric.Object
+  fabricEntity: fabric.Text
 }
 
 function readBlob(blob) {
