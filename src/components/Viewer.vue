@@ -73,6 +73,11 @@ const ViewerProps = Vue.extend({
   }
 })
 export default class Viewer extends ViewerProps {
+  $refs!: {
+    fabricWrapper: HTMLDivElement,
+    viewer: HTMLCanvasElement
+  }
+
   canvas: fabric.Canvas = null;
   currentPage = 1;
   fields: pdfField[][] = [];
@@ -84,7 +89,7 @@ export default class Viewer extends ViewerProps {
 
   async mounted() {
     // @ts-ignore
-    this.canvas = new fabric.Canvas(this.$refs.viewer as unknown as HTMLCanvasElement);
+    this.canvas = new fabric.Canvas(this.$refs.viewer);
 
     const text = new fabric.Text('PDF', {
       selectable: false,
@@ -151,7 +156,7 @@ export default class Viewer extends ViewerProps {
     pdfPage = await this.pdfJS.getPage(this.currentPage);
 
     let viewport = pdfPage.getViewport({scale: 1});
-    const newScale = (this.$refs.fabricWrapper as HTMLDivElement).clientWidth * window.devicePixelRatio / viewport.width;
+    const newScale = this.$refs.fabricWrapper.clientWidth * window.devicePixelRatio / viewport.width;
 
     if (!force && newScale < this.scale) {
       return;
@@ -192,9 +197,9 @@ export default class Viewer extends ViewerProps {
       }
       resizeInProgress = true;
       await this.renderPDFPage(forceRender);
-      const fabricContainer = (this.$refs.fabricWrapper as HTMLDivElement).children[0] as HTMLDivElement;
+      const fabricContainer = this.$refs.fabricWrapper.children[0] as HTMLDivElement;
       fabricContainer.style.width = "100%";
-      const height = (this.$refs.fabricWrapper as HTMLDivElement).clientWidth * renderImage.height / renderImage.width + "px";
+      const height = this.$refs.fabricWrapper.clientWidth * renderImage.height / renderImage.width + "px";
       fabricContainer.style.height = height;
       //@ts-ignore
       for (let child of fabricContainer.children) {
