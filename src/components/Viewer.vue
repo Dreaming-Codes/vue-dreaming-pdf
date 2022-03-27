@@ -196,10 +196,11 @@ export default {
      */
     getFieldById(id: string): [number, pdfField] {
       let field;
+      // +1 because page numeration in pdfJS starts at 1
       const page = this.fields.findIndex((page) => {
         field = page.find(field => field.id === id);
         return field;
-      });
+      }) + 1;
       return [page, field];
     },
 
