@@ -230,6 +230,17 @@ export default {
       this.canvas.add(field.fabricEntity);
     },
 
+    async removeField(id: string) {
+      const [page, field] = this.getFieldById(id);
+      if(!field) {
+        throw new Error("Field not found");
+      }
+      this.fields[page-1].splice(this.fields[page-1].indexOf(field), 1);
+      if(page === this.currentPage){
+        this.canvas.remove(field.fabricEntity);
+      }
+    },
+
     async setPage(page: number) {
       if(!this.firstLoad && this.isLoading){
         return;
