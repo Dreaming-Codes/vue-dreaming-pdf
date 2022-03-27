@@ -266,7 +266,7 @@ export default {
         this.canvas.add(field.fabricEntity)
       })
     },
-    async exportToPDF() {
+    async exportToPDF(): Promise<Uint8Array> {
       const pdfDoc = await PDFDocument.load(this.pdf.toString());
       const forms = pdfDoc.getForm();
       pdfDoc.getPages().forEach((page, index) => {
@@ -288,14 +288,8 @@ export default {
         }
       });
 
-      pdfDoc.save().then(pdfBlob => {
-        const url = URL.createObjectURL(new Blob([pdfBlob]));
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'output.pdf';
-        a.click();
-      });
-    }
+      return pdfDoc.save();
+    },
   },
   watch: {
     isLoading(isLoading) {
