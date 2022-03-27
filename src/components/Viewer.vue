@@ -48,7 +48,7 @@ export default {
     text.set('text', 'loading...');
     this.canvas.requestRenderAll();
 
-    this.pdf = await readBlob(this.pdf)
+    this.pdf = await readBlob(this.file)
 
     const pdfDoc = await PDFDocument.load(this.pdf);
 
@@ -103,7 +103,7 @@ export default {
 
   },
   props: {
-    pdf: {
+    file: {
       type: Blob,
       required: true,
     }
@@ -305,6 +305,7 @@ export default {
       fields: [],
       pdfJS: null,
       scale: null,
+      pdf: null,
       canvasScaling: 1,
       isLoading: true,
       firstLoad: true,

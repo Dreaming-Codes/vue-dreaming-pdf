@@ -7,7 +7,7 @@
       <button @click="spawnText">SPAWN TEXT</button>
       <button @click="exportPDF">EXPORT PDF</button>
       <button @click="test">TEST</button>
-      <viewer ref="viewer" style="height: 90%; width: 100%" :pdf="file"></viewer>
+      <viewer ref="viewer" style="height: 90%; width: 100%" :file="file"></viewer>
     </div>
   </div>
 </template>
