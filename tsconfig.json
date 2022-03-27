@@ -3,6 +3,7 @@
     "target": "ESNext",
     "useDefineForClassFields": true,
     "declaration": true,
+    "experimentalDecorators": true,
     "baseUrl": ".",
     "module": "ESNext",
     "lib": [
