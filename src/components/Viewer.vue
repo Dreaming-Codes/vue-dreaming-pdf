@@ -227,6 +227,7 @@ export default {
       }else{
         this.fields[page-1].push(field);
       }
+      this.canvas.add(field.fabricEntity);
     },
 
     async setPage(page: number) {
