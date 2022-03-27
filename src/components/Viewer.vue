@@ -185,6 +185,10 @@ export default {
       this.canvas.add(field.fabricEntity);
     },
 
+    getFieldsLength() {
+      return this.fields.flat().length;
+    },
+
     /**
      * Get the field with the given id
      * @param id

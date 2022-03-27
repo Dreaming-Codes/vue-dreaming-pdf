@@ -6,6 +6,7 @@
       <button @click="nextPage">NEXT PAGE</button>
       <button @click="spawnText">SPAWN TEXT</button>
       <button @click="exportPDF">EXPORT PDF</button>
+      <button @click="test">TEST</button>
       <viewer ref="viewer" style="height: 90%; width: 100%" :pdf="file"></viewer>
     </div>
   </div>
@@ -20,6 +21,9 @@ export default Vue.extend({
   methods: {
     async renderPDF(event) {
       this.file = event.target.files[0];
+    },
+    test(){
+      console.log(this.$refs.viewer.getFieldsLength());
     },
     spawnText() {
       const fieldToSpawn: pdfField = {
